@@ -68,7 +68,8 @@ O núcleo decide o destino da mensagem:
 
 ## Desenvolvimento
 
-Requisitos: Go 1.27+ e ffmpeg (os testes de integração do adaptador são pulados se o ffmpeg não estiver instalado).
+Requisitos: Go 1.27 (versão fixada em `.tool-versions`: `asdf install` instala a versão certa) e ffmpeg
+(`brew install ffmpeg`; sem ele, os testes de integração do adaptador são pulados).
 
 ```bash
 go test ./... -race -cover
