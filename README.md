@@ -87,4 +87,6 @@ docker run --rm -v "$PWD":/src -w /src golang:1.27-alpine \
 ## CI
 
 `.github/workflows/ci.yml`: vet → golangci-lint → testes com `-race` e cobertura (ffmpeg real) → SonarCloud → build da imagem.
-O passo do Sonar só roda quando o secret `SONAR_TOKEN` existe (ver [FiapXHacka/fiapx#4](https://github.com/FiapXHacka/fiapx/issues/4)).
+A análise no SonarQube Cloud é *secretless*: o job troca seu token OIDC do GitHub por um token de 30 minutos
+(`sonarqube-auth-action`), sem `SONAR_TOKEN` armazenado. Requer o repositório vinculado ao projeto
+`FiapXHacka_fiapx-video-processor` no SonarQube Cloud.

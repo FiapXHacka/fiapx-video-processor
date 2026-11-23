@@ -17,8 +17,10 @@ jobs:
   test:
     name: Lint, test & analyze
     runs-on: ubuntu-latest
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write # secretless SonarQube Cloud analysis (OIDC), no SONAR_TOKEN secret
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,12 +45,13 @@ jobs:
       - name: Coverage summary
         run: go tool cover -func=coverage.out | tail -1
 
-      # Skipped until the SonarCloud project and the SONAR_TOKEN org secret exist (FiapXHacka/fiapx#4).
-      - name: SonarCloud
-        if: ${{ env.SONAR_TOKEN != '' }}
-        uses: SonarSource/sonarqube-scan-action@v5
-        env:
-          SONAR_HOST_URL: https://sonarcloud.io
+      # Exchanges the job's GitHub OIDC token for a 30-minute token scoped to this repo's project
+      # and exports it as SONAR_TOKEN. Organization and key come from sonar-project.properties.
+      - name: SonarQube Cloud auth (secretless)
+        uses: SonarSource/sonarqube-auth-action@v1
+
+      - name: SonarQube Cloud scan
+        uses: SonarSource/sonarqube-scan-action@v8
 
   image:
     name: Build image
