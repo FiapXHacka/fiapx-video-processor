@@ -49,7 +49,8 @@ O núcleo decide o destino da mensagem:
 |---|---|---|
 | `nil` | resultado (`processed` ou `failed`) publicado e confirmado | ack |
 | `ErrMalformedJob` | mensagem sem ids válidos, não há a quem reportar | ack + log |
-| outro erro | transitório (S3, broker, cancelamento) | nack → reentrega/DLQ |
+| outro erro | transitório (S3, broker) | retry em processo (1 s, 4 s, 16 s); esgotado → `reject(requeue=false)` → DLQ (ADR-0007) |
+| `context.Canceled` | shutdown | `nack(requeue=true)`: não conta tentativa |
 
 ## Configuração
 
