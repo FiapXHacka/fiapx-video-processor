@@ -1,0 +1,68 @@
+name: Commit lint
+
+# Team rules (ADR-0017): Conventional Commits in English for commits and PR titles
+# (the PR title becomes the squash commit on main) and no Co-authored-by trailers.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  commit-lint:
+    name: Conventional Commits (English, no co-authors)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check PR title and commit messages
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: [a-z0-9].*[^.]$'
+          errors=0
+
+          check_subject() { # $1 = where, $2 = subject
+            if ! printf '%s' "$2" | grep -Eq "$pattern"; then
+              echo "::error::$1: not a Conventional Commit: \"$2\" (expected e.g. \"feat(api): add upload endpoint\")"
+              errors=$((errors + 1))
+            fi
+            if printf '%s' "$2" | LC_ALL=C grep -q '[^ -~]'; then
+              echo "::error::$1: non-ASCII characters found, write it in English: \"$2\""
+              errors=$((errors + 1))
+            fi
+          }
+
+          if [ -n "${PR_TITLE}" ]; then
+            check_subject "PR title" "${PR_TITLE}"
+          fi
+
+          if [ -z "${BASE_SHA}" ] || [ "${BASE_SHA}" = "0000000000000000000000000000000000000000" ]; then
+            range="${HEAD_SHA} -1"
+          else
+            range="${BASE_SHA}..${HEAD_SHA}"
+          fi
+
+          for sha in $(git rev-list --no-merges ${range}); do
+            short=$(git rev-parse --short "${sha}")
+            check_subject "commit ${short}" "$(git log -1 --format=%s "${sha}")"
+            if git log -1 --format=%B "${sha}" | grep -iq '^co-authored-by:'; then
+              echo "::error::commit ${short}: Co-authored-by trailers are not allowed"
+              errors=$((errors + 1))
+            fi
+          done
+
+          if [ "${errors}" -gt 0 ]; then
+            echo "${errors} problem(s). Reword with: git rebase -i, then git push --force-with-lease"
+            exit 1
+          fi
+          echo "All commit messages follow the rules."
